@@ -1,276 +1,779 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="h-full">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gộp File LaTeX Tự Động</title>
-  <!-- Thư viện tạo file ZIP để tải về hàng loạt -->
+  <title>TeX Combiner — Gộp File LaTeX Chuyên Nghiệp</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+              950: '#1e1b4b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- JSZip for exporting ZIP archives -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
   <style>
-    :root {
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --text: #1e293b;
-      --border: #e2e8f0;
+    /* Smooth custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.05);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(99, 102, 241, 0.3);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(99, 102, 241, 0.6);
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Gradient animated border effect */
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.015); }
     }
-
-    body {
-      background-color: var(--bg);
-      color: var(--text);
-      display: flex;
-      justify-content: center;
-      padding: 40px 16px;
+    .dropzone-active {
+      border-color: #6366f1 !important;
+      background: radial-gradient(circle at center, rgba(99, 102, 241, 0.12) 0%, rgba(248, 250, 252, 0.7) 100%) !important;
+      box-shadow: 0 0 35px -5px rgba(99, 102, 241, 0.35) !important;
     }
-
-    .container {
-      width: 100%;
-      max-width: 720px;
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 32px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
-    }
-
-    h1 {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    p.subtitle {
-      font-size: 14px;
-      color: #64748b;
-      margin-bottom: 24px;
-    }
-
-    .dropzone {
-      border: 2px dashed #cbd5e1;
-      border-radius: 8px;
-      padding: 36px 20px;
-      text-align: center;
-      cursor: pointer;
-      background: #f1f5f9;
-      transition: all 0.2s ease;
-    }
-
-    .dropzone:hover, .dropzone.dragover {
-      border-color: var(--primary);
-      background: #eff6ff;
-    }
-
-    .dropzone input {
-      display: none;
-    }
-
-    .btn-action {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 8px 16px;
-      font-size: 14px;
-      font-weight: 600;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      background: var(--primary);
-      color: white;
-      text-decoration: none;
-      transition: background 0.2s ease;
-    }
-
-    .btn-action:hover {
-      background: var(--primary-hover);
-    }
-
-    .btn-secondary {
-      background: #059669;
-    }
-
-    .btn-secondary:hover {
-      background: #047857;
-    }
-
-    .results-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 28px;
-      margin-bottom: 16px;
-    }
-
-    .file-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .file-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
-      background: #f8fafc;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-    }
-
-    .file-info {
-      font-size: 14px;
-    }
-
-    .file-name {
-      font-weight: 600;
-    }
-
-    .file-meta {
-      font-size: 12px;
-      color: #64748b;
-      margin-top: 2px;
+    .full-screen-drag-overlay {
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
   </style>
 </head>
-<body>
 
-<div class="container">
-  <h1>Gộp File LaTeX Tự Động</h1>
-  <p class="subtitle">Tải lên các file định dạng như <code>[2H3Y2-1].tex</code> để tự động gộp thành <code>2H3Y2.tex</code>.</p>
-
-  <label class="dropzone" id="dropzone">
-    <input type="file" id="fileInput" multiple accept=".tex,.txt" />
-    <strong>Nhấn để chọn file</strong> hoặc kéo thả danh sách file vào đây
-  </label>
-
-  <div id="resultArea" style="display: none;">
-    <div class="results-header">
-      <strong>Kết quả gộp (<span id="groupCount">0</span> file)</strong>
-      <button class="btn-action btn-secondary" id="downloadAllBtn">Tải tất cả (.ZIP)</button>
-    </div>
-    <ul class="file-list" id="fileList"></ul>
+<body class="min-h-full bg-slate-900 text-slate-100 font-sans selection:bg-brand-500 selection:text-white flex flex-col relative overflow-x-hidden antialiased">
+  
+  <!-- Subtle ambient background glowing orbs -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+    <div class="absolute -top-40 left-1/4 w-96 h-96 bg-brand-600/20 rounded-full blur-3xl"></div>
+    <div class="absolute top-1/3 -right-20 w-[500px] h-[500px] bg-sky-500/15 rounded-full blur-[120px]"></div>
+    <div class="absolute -bottom-40 left-1/3 w-[600px] h-[600px] bg-indigo-500/15 rounded-full blur-[140px]"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:24px_24px] opacity-25"></div>
   </div>
-</div>
 
-<script>
-  const fileInput = document.getElementById('fileInput');
-  const dropzone = document.getElementById('dropzone');
-  const resultArea = document.getElementById('resultArea');
-  const fileList = document.getElementById('fileList');
-  const groupCount = document.getElementById('groupCount');
-  const downloadAllBtn = document.getElementById('downloadAllBtn');
+  <!-- Fullscreen drag drop visual overlay indicator -->
+  <div id="fullOverlay" class="full-screen-drag-overlay fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center gap-4 opacity-0 pointer-events-none scale-95 transition-all duration-200">
+    <div class="w-24 h-24 rounded-3xl bg-brand-500/20 border-2 border-brand-400 flex items-center justify-center text-brand-300 shadow-2xl shadow-brand-500/30 animate-bounce">
+      <i data-lucide="upload-cloud" class="w-12 h-12"></i>
+    </div>
+    <h2 class="text-2xl font-bold text-white tracking-tight">Thả các tệp .tex vào đây</h2>
+    <p class="text-slate-300 text-sm">Hệ thống sẽ tự động bóc tách và phân nhóm thông minh</p>
+  </div>
 
-  let mergedOutputs = {};
+  <header class="w-full border-b border-slate-800/80 backdrop-blur-xl bg-slate-900/60 sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center shadow-lg shadow-brand-500/25 border border-indigo-300/20">
+          <i data-lucide="layers" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <span class="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400">TeX Combiner</span>
+          <span class="hidden sm:inline-block ml-2 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase bg-brand-500/20 text-brand-300 border border-brand-500/30 rounded-full">Pro Studio</span>
+        </div>
+      </div>
 
-  ['dragenter', 'dragover'].forEach(name => {
-    dropzone.addEventListener(name, (e) => {
-      e.preventDefault();
-      dropzone.classList.add('dragover');
-    });
-  });
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700/60">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Xử lý 100% Client-side Bảo Mật</span>
+        </div>
+      </div>
+    </div>
+  </header>
 
-  ['dragleave', 'drop'].forEach(name => {
-    dropzone.addEventListener(name, (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('dragover');
-    });
-  });
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 flex flex-col gap-8">
+    
+    <!-- Hero / Intro -->
+    <div class="text-center max-w-2xl mx-auto space-y-3">
+      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
+        Gộp File <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-brand-300 to-sky-400">LaTeX Tự Động</span> Theo Nhóm Mã
+      </h1>
+      <p class="text-slate-400 text-sm sm:text-base leading-relaxed">
+        Thả cả thư mục hoặc danh sách file <code class="px-2 py-0.5 bg-slate-800 text-brand-300 rounded font-mono text-xs border border-slate-700">[2H3Y2-1].tex</code>. Hệ thống sẽ tự động ghép toàn bộ nội dung từ 1 đến hết thành file tổng <code class="px-2 py-0.5 bg-slate-800 text-emerald-400 rounded font-mono text-xs border border-slate-700">2H3Y2.tex</code> chuẩn xác.
+      </p>
+    </div>
 
-  dropzone.addEventListener('drop', (e) => {
-    if (e.dataTransfer.files.length) {
-      handleFiles(Array.from(e.dataTransfer.files));
-    }
-  });
+    <div class="w-full">
+      <div 
+        id="dropzone" 
+        class="relative group cursor-pointer border-2 border-dashed border-slate-700 hover:border-brand-500/80 bg-slate-800/40 hover:bg-slate-800/70 rounded-2xl p-8 sm:p-12 transition-all duration-300 text-center flex flex-col items-center justify-center gap-4 overflow-hidden backdrop-blur-sm"
+      >
+        <input type="file" id="fileInput" multiple accept=".tex,.txt" class="hidden" />
 
-  fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length) {
-      handleFiles(Array.from(e.target.files));
-    }
-  });
+        <div class="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-brand-400 group-hover:scale-110 group-hover:bg-brand-600 group-hover:text-white transition-all duration-300 shadow-xl group-hover:shadow-brand-500/30">
+          <i data-lucide="file-up" class="w-8 h-8 transition-transform"></i>
+        </div>
 
-  async function handleFiles(files) {
-    mergedOutputs = {};
-    const groups = {};
+        <div class="space-y-1">
+          <p class="text-base sm:text-lg font-semibold text-slate-200 group-hover:text-white transition-colors">
+            Kéo thả toàn bộ các file <span class="text-brand-400 font-mono">.tex</span> vào đây
+          </p>
+          <p class="text-xs sm:text-sm text-slate-400">
+            Hoặc <span class="text-brand-400 underline underline-offset-4 decoration-brand-500 font-medium">duyệt chọn từ máy tính</span> (hỗ trợ chọn nhiều file cùng lúc)
+          </p>
+        </div>
 
-    // Phân loại file theo cấu trúc: [Prefix-SốThứTự] hoặc Prefix-SốThứTự
-    files.forEach(file => {
-      const match = file.name.match(/^\[?([A-Za-z0-9_]+)-(\d+)\]?\.tex$/i);
+        <!-- Quick specs badge -->
+        <div class="flex flex-wrap items-center justify-center gap-2 pt-2">
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-mono text-slate-300 bg-slate-800/90 border border-slate-700">
+            <i data-lucide="file-code-2" class="w-3.5 h-3.5 text-brand-400"></i>
+            *.tex, *.txt
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs text-slate-300 bg-slate-800/90 border border-slate-700">
+            <i data-lucide="arrow-down-1-0" class="w-3.5 h-3.5 text-emerald-400"></i>
+            Tự sort thứ tự -1, -2, -3...
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs text-slate-300 bg-slate-800/90 border border-slate-700">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5 text-sky-400"></i>
+            Giữ nguyên 100% nội dung
+          </span>
+        </div>
+      </div>
+
+      <!-- Settings toolbar -->
+      <div class="mt-4 flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-slate-800/40 border border-slate-800 text-xs sm:text-sm text-slate-300">
+        <label class="flex items-center gap-2.5 cursor-pointer select-none">
+          <input type="checkbox" id="optAddDivider" checked class="w-4 h-4 rounded border-slate-700 text-brand-600 focus:ring-brand-500 bg-slate-900" />
+          <span>Thêm dòng chú thích ngăn cách giữa các file (<code class="text-brand-300 font-mono text-[11px]">% === [Tên file] ===</code>)</span>
+        </label>
+
+        <label class="flex items-center gap-2.5 cursor-pointer select-none">
+          <input type="checkbox" id="optTrimBlankLines" class="w-4 h-4 rounded border-slate-700 text-brand-600 focus:ring-brand-500 bg-slate-900" />
+          <span>Loại bỏ khoảng trắng thừa đầu/cuối mỗi file</span>
+        </label>
+      </div>
+    </div>
+
+    <div id="statsSection" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div class="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 backdrop-blur-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-1">
+          <span class="text-xs font-medium uppercase tracking-wider">File đã nạp</span>
+          <i data-lucide="files" class="w-4 h-4 text-brand-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-white font-mono" id="statInputCount">0</div>
+      </div>
+
+      <div class="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 backdrop-blur-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-1">
+          <span class="text-xs font-medium uppercase tracking-wider">Nhóm đầu ra</span>
+          <i data-lucide="folder-output" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-emerald-400 font-mono" id="statGroupCount">0</div>
+      </div>
+
+      <div class="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 backdrop-blur-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-1">
+          <span class="text-xs font-medium uppercase tracking-wider">Tổng ký tự</span>
+          <i data-lucide="type" class="w-4 h-4 text-sky-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-sky-300 font-mono" id="statCharCount">0</div>
+      </div>
+
+      <div class="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 backdrop-blur-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-1">
+          <span class="text-xs font-medium uppercase tracking-wider">Tổng dung lượng</span>
+          <i data-lucide="hard-drive" class="w-4 h-4 text-purple-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-purple-300 font-mono" id="statTotalSize">0 KB</div>
+      </div>
+    </div>
+
+    <div id="resultSection" class="hidden flex flex-col gap-4">
       
-      let baseKey = '';
-      let index = 0;
+      <div class="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <h2 class="text-lg font-bold text-white">Danh sách File Đã Gộp</h2>
+          <span id="badgeCount" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-500/20 text-brand-300 border border-brand-500/30">0 file</span>
+        </div>
 
+        <div class="flex items-center gap-2">
+          <button 
+            id="clearBtn"
+            class="px-3.5 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-red-300 hover:bg-red-500/10 border border-slate-700/80 hover:border-red-500/30 transition-all flex items-center gap-1.5"
+          >
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            Xóa làm mới
+          </button>
+          
+          <button 
+            id="downloadZipBtn"
+            class="px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white shadow-lg shadow-emerald-900/30 transition-all flex items-center gap-2 active:scale-95"
+          >
+            <i data-lucide="archive" class="w-4 h-4"></i>
+            Tải Tất Cả (.ZIP)
+          </button>
+        </div>
+      </div>
+
+      <!-- Container list of groups -->
+      <div id="groupsContainer" class="flex flex-col gap-3.5">
+        <!-- Dynamic group items injected here -->
+      </div>
+    </div>
+
+  </main>
+
+  <div id="previewModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-200">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-4xl h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden scale-95 transition-transform duration-200" id="modalCard">
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-brand-300">
+            <i data-lucide="file-code" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-sm sm:text-base font-mono" id="modalTitle">filename.tex</h3>
+            <p class="text-xs text-slate-400" id="modalSubtitle">0 dòng • 0 KB</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="modalCopyBtn" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-all">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            <span id="copyBtnText">Sao chép</span>
+          </button>
+          <button id="modalDownloadBtn" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-brand-600 hover:bg-brand-500 text-white flex items-center gap-1.5 transition-all">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            Tải về
+          </button>
+          <button id="modalCloseBtn" class="p-1.5 text-slate-400 hover:text-white rounded-md hover:bg-slate-800 transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Content Body (Code Viewer) -->
+      <div class="flex-1 p-4 bg-slate-950 overflow-auto font-mono text-xs leading-relaxed text-slate-300 whitespace-pre selection:bg-brand-600/40" id="modalCodeContent"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs sm:text-sm shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400" id="toastIcon"></i>
+    <span id="toastMsg">Thao tác thành công</span>
+  </div>
+
+  <script>
+    // State management
+    let mergedGroups = {}; // key: groupName, val: { files: [{name, text, index, size}], combinedContent, totalSize }
+    let currentPreviewKey = null;
+
+    // DOM Elements
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const fullOverlay = document.getElementById('fullOverlay');
+    const statsSection = document.getElementById('statsSection');
+    const resultSection = document.getElementById('resultSection');
+    const groupsContainer = document.getElementById('groupsContainer');
+    const badgeCount = document.getElementById('badgeCount');
+    const clearBtn = document.getElementById('clearBtn');
+    const downloadZipBtn = document.getElementById('downloadZipBtn');
+
+    // Stats
+    const statInputCount = document.getElementById('statInputCount');
+    const statGroupCount = document.getElementById('statGroupCount');
+    const statCharCount = document.getElementById('statCharCount');
+    const statTotalSize = document.getElementById('statTotalSize');
+
+    // Modal
+    const previewModal = document.getElementById('previewModal');
+    const modalCard = document.getElementById('modalCard');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalSubtitle = document.getElementById('modalSubtitle');
+    const modalCodeContent = document.getElementById('modalCodeContent');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalCopyBtn = document.getElementById('modalCopyBtn');
+    const modalDownloadBtn = document.getElementById('modalDownloadBtn');
+    const copyBtnText = document.getElementById('copyBtnText');
+
+    // Options
+    const optAddDivider = document.getElementById('optAddDivider');
+    const optTrimBlankLines = document.getElementById('optTrimBlankLines');
+
+    // Lucide initialization
+    function refreshIcons() {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    }
+    refreshIcons();
+
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        processFiles(Array.from(e.target.files));
+      }
+      fileInput.value = '';
+    });
+
+    // Window-wide drag and drop events
+    let dragCounter = 0;
+
+    window.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      dragCounter++;
+      if (dragCounter === 1) {
+        fullOverlay.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+        fullOverlay.classList.add('opacity-100', 'scale-100');
+      }
+    });
+
+    window.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        fullOverlay.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+        fullOverlay.classList.remove('opacity-100', 'scale-100');
+      }
+    });
+
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      fullOverlay.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+      fullOverlay.classList.remove('opacity-100', 'scale-100');
+
+      if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+        processFiles(Array.from(e.dataTransfer.files));
+      }
+    });
+
+    /**
+     * Extracts group key and index from filenames like:
+     * "[2H3Y2-1].tex", "2H3Y2-1.tex", "[2H3Y3_5].tex", "[ID - 3].tex"
+     */
+    function parseFileName(fileName) {
+      // Remove .tex or .txt extension
+      const base = fileName.replace(/\.(tex|txt)$/i, '').trim();
+      // Remove outer brackets if present: [2H3Y2-1] -> 2H3Y2-1
+      const unbracketed = base.replace(/^\[\s*/, '').replace(/\s*\]$/, '').trim();
+
+      // Look for trailing "-number" or "_number"
+      const match = unbracketed.match(/^(.*?)[-_](\d+)$/);
       if (match) {
-        baseKey = match[1];
-        index = parseInt(match[2], 10);
-      } else {
-        // Dự phòng nếu tên không có số thứ tự dạng -1, -2
-        baseKey = file.name.replace(/\.tex$/i, '').replace(/[\[\]]/g, '');
+        return {
+          groupKey: match[1].trim(),
+          index: parseInt(match[2], 10)
+        };
       }
 
-      if (!groups[baseKey]) groups[baseKey] = [];
-      groups[baseKey].push({ file, index });
+      // Fallback: If no suffix number, treat the whole cleaned name as the group
+      return {
+        groupKey: unbracketed || 'Merged',
+        index: 9999
+      };
+    }
+
+    async function processFiles(files) {
+      if (!files || files.length === 0) return;
+
+      showToast(`Đang đọc và xử lý ${files.length} file...`, 'info');
+
+      // Accumulate raw files
+      const rawGroups = {};
+
+      for (const file of files) {
+        // Only accept .tex or .txt or text types
+        if (!file.name.match(/\.(tex|txt)$/i) && file.type && !file.type.includes('text')) {
+          continue;
+        }
+
+        const { groupKey, index } = parseFileName(file.name);
+        if (!rawGroups[groupKey]) {
+          rawGroups[groupKey] = [];
+        }
+
+        try {
+          const text = await file.text();
+          rawGroups[groupKey].push({
+            name: file.name,
+            text: text,
+            index: index,
+            size: file.size
+          });
+        } catch (err) {
+          console.error(`Không thể đọc file: ${file.name}`, err);
+        }
+      }
+
+      // Sort files within each group and concatenate full contents
+      const addDivider = optAddDivider.checked;
+      const trimBlanks = optTrimBlankLines.checked;
+
+      for (const [groupKey, fileList] of Object.entries(rawGroups)) {
+        // Sắp xếp thứ tự tự nhiên (1, 2, 3, ... 10)
+        fileList.sort((a, b) => a.index - b.index || a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+        // Ghép toàn bộ nội dung từng file
+        let combined = '';
+        fileList.forEach((item, idx) => {
+          let body = item.text;
+          if (trimBlanks) {
+            body = body.trim();
+          }
+
+          if (addDivider) {
+            const header = `% ==========================================\n% FILE: ${item.name} (Phần #${item.index})\n% ==========================================\n`;
+            combined += (idx > 0 ? '\n\n' : '') + header + body;
+          } else {
+            combined += (idx > 0 ? '\n\n' : '') + body;
+          }
+        });
+
+        // Store into mergedGroups state
+        const totalSize = fileList.reduce((acc, curr) => acc + curr.size, 0);
+        mergedGroups[groupKey] = {
+          groupKey: groupKey,
+          targetFileName: `${groupKey}.tex`,
+          files: fileList,
+          combinedContent: combined,
+          totalSize: totalSize,
+          charCount: combined.length
+        };
+      }
+
+      renderDashboard();
+      showToast(`Đã gộp thành công ${Object.keys(mergedGroups).length} nhóm file!`, 'success');
+    }
+
+    // Re-generate merged strings when checkboxes are toggled
+    function recomputeMergedContent() {
+      const addDivider = optAddDivider.checked;
+      const trimBlanks = optTrimBlankLines.checked;
+
+      for (const group of Object.values(mergedGroups)) {
+        let combined = '';
+        group.files.forEach((item, idx) => {
+          let body = item.text;
+          if (trimBlanks) body = body.trim();
+
+          if (addDivider) {
+            const header = `% ==========================================\n% FILE: ${item.name} (Phần #${item.index})\n% ==========================================\n`;
+            combined += (idx > 0 ? '\n\n' : '') + header + body;
+          } else {
+            combined += (idx > 0 ? '\n\n' : '') + body;
+          }
+        });
+        group.combinedContent = combined;
+        group.charCount = combined.length;
+      }
+      renderDashboard();
+    }
+
+    optAddDivider.addEventListener('change', recomputeMergedContent);
+    optTrimBlankLines.addEventListener('change', recomputeMergedContent);
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function renderDashboard() {
+      const groupKeys = Object.keys(mergedGroups);
+
+      if (groupKeys.length === 0) {
+        statsSection.classList.add('hidden');
+        resultSection.classList.add('hidden');
+        return;
+      }
+
+      // Compute statistics
+      let totalInputFiles = 0;
+      let totalBytes = 0;
+      let totalChars = 0;
+
+      groupKeys.forEach(key => {
+        const g = mergedGroups[key];
+        totalInputFiles += g.files.length;
+        totalBytes += g.totalSize;
+        totalChars += g.charCount;
+      });
+
+      statInputCount.textContent = totalInputFiles.toLocaleString();
+      statGroupCount.textContent = groupKeys.length.toLocaleString();
+      statCharCount.textContent = totalChars.toLocaleString();
+      statTotalSize.textContent = formatBytes(totalBytes);
+      badgeCount.textContent = `${groupKeys.length} file đầu ra`;
+
+      statsSection.classList.remove('hidden');
+      resultSection.classList.remove('hidden');
+
+      // Render cards
+      groupsContainer.innerHTML = '';
+
+      groupKeys.sort().forEach(key => {
+        const group = mergedGroups[key];
+        const card = document.createElement('div');
+        card.className = 'p-5 rounded-2xl bg-slate-800/50 hover:bg-slate-800/80 border border-slate-700/80 transition-all flex flex-col gap-4 shadow-sm';
+
+        // Pills of original files
+        const fileBadges = group.files.map(f => `
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-mono bg-slate-900/80 text-slate-300 border border-slate-700/60" title="${f.name} - ${formatBytes(f.size)}">
+            <i data-lucide="file-text" class="w-3 h-3 text-brand-400"></i>
+            ${escapeHtml(f.name)}
+          </span>
+        `).join('');
+
+        card.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-start gap-3.5">
+              <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-brand-600/30 to-indigo-500/20 border border-brand-500/30 flex items-center justify-center text-brand-300 flex-shrink-0">
+                <i data-lucide="file-check-2" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-bold text-white text-base sm:text-lg font-mono tracking-tight">${escapeHtml(group.targetFileName)}</h3>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Gộp từ ${group.files.length} phần</span>
+                </div>
+                <div class="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                  <span>Dung lượng: <strong class="text-slate-200">${formatBytes(group.totalSize)}</strong></span>
+                  <span>•</span>
+                  <span>${group.combinedContent.split('\n').length.toLocaleString()} dòng</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+              <button onclick="previewGroup('${escapeHtml(key)}')" class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 flex items-center gap-1.5 transition-all active:scale-95">
+                <i data-lucide="eye" class="w-3.5 h-3.5 text-brand-400"></i>
+                Xem trước
+              </button>
+
+              <button onclick="copyGroupContent('${escapeHtml(key)}')" class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 flex items-center gap-1.5 transition-all active:scale-95" title="Copy toàn bộ nội dung">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                Copy
+              </button>
+
+              <button onclick="downloadGroupFile('${escapeHtml(key)}')" class="px-4 py-2 text-xs font-semibold rounded-lg bg-brand-600 hover:bg-brand-500 text-white shadow-md shadow-brand-600/30 flex items-center gap-1.5 transition-all active:scale-95">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                Tải .tex
+              </button>
+            </div>
+          </div>
+
+          <!-- List of source file tags -->
+          <div class="pt-2 border-t border-slate-700/50 flex flex-wrap items-center gap-1.5">
+            <span class="text-[11px] font-medium text-slate-400 mr-1">Các file nguồn:</span>
+            ${fileBadges}
+          </div>
+        `;
+
+        groupsContainer.appendChild(card);
+      });
+
+      refreshIcons();
+    }
+
+    // Helper for HTML escaping
+    function escapeHtml(string) {
+      return String(string).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    window.previewGroup = function(key) {
+      const group = mergedGroups[key];
+      if (!group) return;
+
+      currentPreviewKey = key;
+      modalTitle.textContent = group.targetFileName;
+      const lines = group.combinedContent.split('\n').length;
+      modalSubtitle.textContent = `${lines.toLocaleString()} dòng • ${formatBytes(group.totalSize)} • Đã gộp từ ${group.files.length} file`;
+      modalCodeContent.textContent = group.combinedContent;
+
+      copyBtnText.textContent = 'Sao chép';
+      previewModal.classList.remove('opacity-0', 'pointer-events-none');
+      previewModal.classList.add('opacity-100');
+      modalCard.classList.remove('scale-95');
+      modalCard.classList.add('scale-100');
+      refreshIcons();
+    };
+
+    function closeModal() {
+      previewModal.classList.add('opacity-0', 'pointer-events-none');
+      previewModal.classList.remove('opacity-100');
+      modalCard.classList.add('scale-95');
+      modalCard.classList.remove('scale-100');
+    }
+
+    modalCloseBtn.addEventListener('click', closeModal);
+    previewModal.addEventListener('click', (e) => {
+      if (e.target === previewModal) closeModal();
     });
 
-    // Đọc và ghép nội dung
-    for (const [key, items] of Object.entries(groups)) {
-      items.sort((a, b) => a.index - b.index);
-
-      const contents = await Promise.all(items.map(item => item.file.text()));
-      mergedOutputs[`${key}.tex`] = contents.join('\n\n');
+    // Copy to clipboard with fallback
+    function copyTextToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+        } catch (err) {
+          console.error('Copy fallback failed', err);
+        }
+        document.body.removeChild(textArea);
+      }
     }
 
-    renderResults();
-  }
+    window.copyGroupContent = function(key) {
+      const group = mergedGroups[key];
+      if (!group) return;
+      copyTextToClipboard(group.combinedContent);
+      showToast(`Đã chép nội dung ${group.targetFileName} vào bộ nhớ tạm!`, 'success');
+    };
 
-  function renderResults() {
-    fileList.innerHTML = '';
-    const keys = Object.keys(mergedOutputs);
+    modalCopyBtn.addEventListener('click', () => {
+      if (!currentPreviewKey || !mergedGroups[currentPreviewKey]) return;
+      copyTextToClipboard(mergedGroups[currentPreviewKey].combinedContent);
+      copyBtnText.textContent = 'Đã chép!';
+      setTimeout(() => { copyBtnText.textContent = 'Sao chép'; }, 2000);
+      showToast('Đã copy nội dung vào clipboard!', 'success');
+    });
 
-    if (keys.length === 0) {
-      resultArea.style.display = 'none';
-      return;
-    }
+    window.downloadGroupFile = function(key) {
+      const group = mergedGroups[key];
+      if (!group) return;
 
-    groupCount.textContent = keys.length;
-
-    keys.forEach(fileName => {
-      const li = document.createElement('li');
-      li.className = 'file-item';
-
-      const blob = new Blob([mergedOutputs[fileName]], { type: 'text/plain;charset=utf-8' });
+      const blob = new Blob([group.combinedContent], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = group.targetFileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Đã tải xuống ${group.targetFileName}`, 'success');
+    };
 
-      li.innerHTML = `
-        <div class="file-info">
-          <div class="file-name">${fileName}</div>
-          <div class="file-meta">Kích thước: ${(blob.size / 1024).toFixed(1)} KB</div>
-        </div>
-        <a href="${url}" download="${fileName}" class="btn-action">Tải về</a>
-      `;
-      fileList.appendChild(li);
+    modalDownloadBtn.addEventListener('click', () => {
+      if (currentPreviewKey) {
+        downloadGroupFile(currentPreviewKey);
+      }
     });
 
-    resultArea.style.display = 'block';
-  }
+    downloadZipBtn.addEventListener('click', async () => {
+      const groupKeys = Object.keys(mergedGroups);
+      if (groupKeys.length === 0) return;
 
-  downloadAllBtn.addEventListener('click', async () => {
-    const zip = new JSZip();
-    for (const [fileName, content] of Object.entries(mergedOutputs)) {
-      zip.file(fileName, content);
+      showToast('Đang nén file ZIP...', 'info');
+
+      try {
+        const zip = new JSZip();
+        groupKeys.forEach(key => {
+          const group = mergedGroups[key];
+          zip.file(group.targetFileName, group.combinedContent);
+        });
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Merged_TeX_${new Date().toISOString().slice(0, 10)}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('Tải file ZIP thành công!', 'success');
+      } catch (err) {
+        console.error('Lỗi nén ZIP:', err);
+        showToast('Có lỗi xảy ra khi tạo file ZIP!', 'error');
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      mergedGroups = {};
+      renderDashboard();
+      showToast('Đã xóa dữ liệu, sẵn sàng nạp mới.', 'info');
+    });
+
+    // Toast Notification helper
+    let toastTimeout;
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      clearTimeout(toastTimeout);
+      toastMsg.textContent = message;
+
+      if (type === 'error') {
+        toastIcon.setAttribute('data-lucide', 'alert-circle');
+        toastIcon.className = 'w-4 h-4 text-red-400';
+      } else if (type === 'info') {
+        toastIcon.setAttribute('data-lucide', 'info');
+        toastIcon.className = 'w-4 h-4 text-brand-400';
+      } else {
+        toastIcon.setAttribute('data-lucide', 'check-circle');
+        toastIcon.className = 'w-4 h-4 text-emerald-400';
+      }
+
+      refreshIcons();
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3000);
     }
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'merged_tex_files.zip';
-    link.click();
-  });
-</script>
+  </script>
 </body>
 </html>
